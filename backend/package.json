@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "db:setup": "node database/setup.js",
+    "db:reset": "node database/reset.js"
   },
   "keywords": [
     "chat",
@@ -17,11 +19,16 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
     "helmet": "^7.2.0",
-    "morgan": "^1.10.1"
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.1",
+    "multer": "^2.0.2",
+    "pg": "^8.16.3",
+    "redis": "^5.9.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

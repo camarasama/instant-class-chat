@@ -1,43 +1,13 @@
 import pkg from 'pg';
-const { Client } = pkg;
+const { Pool } = pkg;
 
-const client = new Client({
-  host: 'localhost',
-  port: 5432,
-  database: 'classchat',
-  user: 'chat_user',
-  password: 'chat_pass',
+const pool = new Pool({
+  user: process.env.DB_USER || 'chat_user',
+  host: process.env.DB_HOST || 'localhost',
+  database: process.env.DB_NAME || 'classchat',
+  password: process.env.DB_PASSWORD || 'chat_pass',
+  port: process.env.DB_PORT || 5432,
 });
 
-export const initDatabase = async () => {
-  try {
-    await client.connect();
-    console.log('✅ Connected to PostgreSQL');
-    
-    // Create tables
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        name VARCHAR(255) NOT NULL,
-        role VARCHAR(50) DEFAULT 'student',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-      
-      CREATE TABLE IF NOT EXISTS chats (
-        id SERIAL PRIMARY KEY,
-        type VARCHAR(20) NOT NULL,
-        title VARCHAR(255),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    
-    console.log('✅ Database tables created');
-    return client;
-  } catch (error) {
-    console.error('❌ Database connection failed:', error);
-    process.exit(1);
-  }
-};
-
-export default client;
+export const query = (text, params) => pool.query(text, params);
+export default pool;

@@ -1,0 +1,70 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  username    String   @unique
+  email       String   @unique
+  password    String   // Hashed password
+  name        String?
+  avatar      String?
+  indexNumber String?  @unique
+  phoneNumber String?  @unique
+  role        UserRole @default(STUDENT)
+  isVerified  Boolean  @default(false)
+  otpCode     String?
+  otpExpires  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  messages Message[]
+  channels Channel[]  // Channels the user is member of
+
+  @@map("users")
+}
+
+model Channel {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  messages Message[]
+  members  User[]     // Many-to-many with users
+
+  @@map("channels")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  text      String
+  fileUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  
+  channelId String
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+enum UserRole {
+  STUDENT
+  INSTRUCTOR
+  ADMIN
+}

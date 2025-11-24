@@ -11,9 +11,10 @@
     "db:generate": "npx prisma generate",
     "db:setup": "node database/setup.js",
     "db:seed": "node prisma/seed.js",
-    "db:reset": "npx prisma migrate reset && npm run db:seed",
+    "db:reset": "npx prisma db push --force-reset && npx prisma db seed",
     "db:studio": "npx prisma studio",
-    "db:migrate": "npx prisma migrate dev"
+    "db:migrate": "npx prisma migrate dev",
+    "test:email": "node -e \"import('./services/emailService.js').then(m => m.testEmailConnection().then(console.log).catch(console.error))\""
   },
   "keywords": [
     "chat",

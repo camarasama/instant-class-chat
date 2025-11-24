@@ -9,41 +9,39 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(cuid())
-  username    String   @unique
-  email       String   @unique
-  password    String   // Hashed password
+  id          String    @id @default(cuid())
+  username    String    @unique
+  email       String    @unique
+  indexNumber String    @unique
+  phoneNumber String?
+  password    String
   name        String?
   avatar      String?
-  indexNumber String?  @unique
-  phoneNumber String?  @unique
-  role        UserRole @default(STUDENT)
-  isVerified  Boolean  @default(false)
+  role        UserRole  @default(STUDENT)
+  isVerified  Boolean   @default(false)
   otpCode     String?
   otpExpires  DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  // Relations
-  messages Message[]
-  channels Channel[]  // Channels the user is member of
+  // Relations - ADDED MISSING RELATIONS
+  messages        Message[]
+  channels        Channel[] @relation("ChannelMembers")
+  createdChannels Channel[] @relation("CreatedChannels")
 
   @@map("users")
 }
 
-model Channel {
+model SchoolRegistry {
   id          String   @id @default(cuid())
-  name        String
-  description String?
-  isPublic    Boolean  @default(true)
+  email       String   @unique
+  indexNumber String   @unique
+  fullName    String
+  role        String   @default("student")
+  isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 
-  // Relations
-  messages Message[]
-  members  User[]     // Many-to-many with users
-
-  @@map("channels")
+  @@map("school_registry")
 }
 
 model Message {
@@ -55,16 +53,33 @@ model Message {
 
   // Relations
   authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  
+  author    User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
   channelId String
-  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
 
   @@map("messages")
+}
+
+model Channel {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade, name: "CreatedChannels")
+  members     User[]    @relation("ChannelMembers")
+  messages    Message[]
+
+  @@map("channels")
 }
 
 enum UserRole {
   STUDENT
   INSTRUCTOR
   ADMIN
+  CLASS_REP
 }

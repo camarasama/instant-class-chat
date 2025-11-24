@@ -1,42 +1,43 @@
+// middleware/validation.js
 export const validateRegistration = (req, res, next) => {
-  const { username, email, indexNumber, phoneNumber, password, confirmPassword } = req.body;
-
+  const { username, email, indexNumber, phoneNumber, password } = req.body;
+  
   const errors = [];
 
-  // Required fields
-  if (!username) errors.push('Username is required');
-  if (!email) errors.push('Email is required');
-  if (!indexNumber) errors.push('Index number is required');
-  if (!phoneNumber) errors.push('Phone number is required');
-  if (!password) errors.push('Password is required');
-
-  // Email format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (email && !emailRegex.test(email)) {
-    errors.push('Invalid email format');
+  // Username validation
+  if (!username || username.trim().length < 3) {
+    errors.push('Username must be at least 3 characters long');
   }
 
-  // Phone number (10 digits)
-  const phoneRegex = /^\d{10}$/;
-  if (phoneNumber && !phoneRegex.test(phoneNumber)) {
-    errors.push('Phone number must be exactly 10 digits');
+  if (!username || !/^[a-zA-Z0-9_]+$/.test(username)) {
+    errors.push('Username can only contain letters, numbers, and underscores');
   }
 
-  // Password match
-  if (password !== confirmPassword) {
-    errors.push('Passwords do not match');
+  // Email validation
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    errors.push('Valid email address is required');
   }
 
-  // Password strength
-  if (password && password.length < 8) {
-    errors.push('Password must be at least 8 characters long');
+  // Index number validation
+  if (!indexNumber || indexNumber.trim().length < 3) {
+    errors.push('Index number is required');
+  }
+
+  // Password validation
+  if (!password || password.length < 6) {
+    errors.push('Password must be at least 6 characters long');
+  }
+
+  // Phone number validation (optional)
+  if (phoneNumber && !/^\+?[\d\s-()]+$/.test(phoneNumber)) {
+    errors.push('Please provide a valid phone number');
   }
 
   if (errors.length > 0) {
     return res.status(400).json({
       success: false,
-      message: 'Validation failed',
-      errors
+      message: 'Registration validation failed',
+      errors: errors
     });
   }
 

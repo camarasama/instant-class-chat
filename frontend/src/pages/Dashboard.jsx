@@ -1,4 +1,4 @@
-// src/pages/Dashboard.jsx
+// src/pages/Dashboard.jsx - Updated connection section
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useSocket } from '../contexts/SocketContext.jsx';
@@ -9,41 +9,25 @@ import { channelAPI } from '../services/api.js';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
-  const { socket, isConnected } = useSocket();
+  const { socket, isConnected, connectionError } = useSocket();
   const [activeChannel, setActiveChannel] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [socketConnected, setSocketConnected] = useState(false);
 
-  // Monitor socket connection status
+  // Debug connection status
   useEffect(() => {
-    if (socket) {
-      const handleConnect = () => {
-        console.log('✅ Socket connected');
-        setSocketConnected(true);
-      };
-
-      const handleDisconnect = () => {
-        console.log('❌ Socket disconnected');
-        setSocketConnected(false);
-      };
-
-      socket.on('connect', handleConnect);
-      socket.on('disconnect', handleDisconnect);
-      
-      // Set initial connection state
-      setSocketConnected(socket.connected);
-
-      return () => {
-        socket.off('connect', handleConnect);
-        socket.off('disconnect', handleDisconnect);
-      };
-    }
-  }, [socket]);
+    console.log('📡 Connection Status:', {
+      isConnected,
+      connectionError,
+      socketExists: !!socket,
+      socketConnected: socket?.connected
+    });
+  }, [isConnected, connectionError, socket]);
 
   useEffect(() => {
-    if (socket && socketConnected) {
-      // Listen for new messages
+    if (socket && isConnected) {
+      console.log('🎯 Setting up socket listeners for active channel:', activeChannel?.name);
+
       const handleNewMessage = (message) => {
         console.log('📨 New message received:', message);
         if (message.channelId === activeChannel?.id) {
@@ -51,21 +35,26 @@ const Dashboard = () => {
         }
       };
 
-      // Listen for message errors
       const handleMessageError = (error) => {
         console.error('❌ Message error:', error);
         alert(`Failed to send message: ${error.error}`);
       };
 
+      // Remove any existing listeners first
+      socket.off('new_message');
+      socket.off('message_error');
+
+      // Add new listeners
       socket.on('new_message', handleNewMessage);
       socket.on('message_error', handleMessageError);
 
       return () => {
+        console.log('🧹 Cleaning up socket listeners');
         socket.off('new_message', handleNewMessage);
         socket.off('message_error', handleMessageError);
       };
     }
-  }, [socket, socketConnected, activeChannel]);
+  }, [socket, isConnected, activeChannel]);
 
   const handleChannelSelect = async (channel) => {
     console.log('🔄 Selecting channel:', channel.name);
@@ -80,9 +69,11 @@ const Dashboard = () => {
       setMessages(channelMessages);
       
       // Join the channel room for real-time updates
-      if (socket && socketConnected) {
+      if (socket && isConnected) {
         socket.emit('join_channel', channel.id);
         console.log('✅ Joined channel room:', channel.id);
+      } else {
+        console.warn('⚠️ Cannot join channel room: Socket not connected');
       }
     } catch (error) {
       console.error('❌ Failed to load channel messages:', error);
@@ -100,9 +91,9 @@ const Dashboard = () => {
       return;
     }
 
-    if (!socket || !socketConnected) {
-      console.error('❌ Socket not connected');
-      alert('Connection lost. Please refresh the page.');
+    if (!socket || !isConnected) {
+      console.error('❌ Socket not connected, cannot send message');
+      alert('Not connected to chat server. Please check your connection.');
       return;
     }
 
@@ -125,7 +116,13 @@ const Dashboard = () => {
     await logout();
   };
 
-  const canSendMessages = socketConnected && isConnected && !loading && activeChannel;
+  const handleReconnect = () => {
+    if (socket) {
+      socket.connect();
+    }
+  };
+
+  const canSendMessages = isConnected && !loading && activeChannel;
 
   return (
     <div className="h-screen bg-gray-100 flex flex-col">
@@ -133,19 +130,29 @@ const Dashboard = () => {
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="px-6 py-4">
           <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Class Chat</h1>
-                <p className="text-sm text-gray-600">
-                  Welcome, {user?.name || user?.username}! 
-                  <span style={{ 
-                    marginLeft: '0.5rem',
-                    color: isConnected ? '#059669' : '#dc2626'
-                  }}>
-                    {isConnected ? '🟢 Online' : '🔴 Offline'}
-                  </span>
-                </p>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Class Chat</h1>
+              <div className="flex items-center space-x-2 mt-1">
+                <span className={`text-sm ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
+                  {isConnected ? '🟢 Online' : '🔴 Offline'}
+                </span>
+                {connectionError && (
+                  <span className="text-sm text-red-600">• {connectionError}</span>
+                )}
+                {!isConnected && socket && (
+                  <button
+                    onClick={handleReconnect}
+                    className="text-sm text-blue-600 hover:text-blue-700 underline"
+                  >
+                    Reconnect
+                  </button>
+                )}
               </div>
+            </div>
             <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-600">
+                Welcome, {user?.name || user?.username}
+              </span>
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                 user?.role === 'INSTRUCTOR' 
                   ? 'bg-purple-100 text-purple-800' 
@@ -164,6 +171,24 @@ const Dashboard = () => {
         </div>
       </header>
 
+      {/* Connection Status Banner */}
+      {connectionError && (
+        <div className="bg-red-50 border-b border-red-200 px-6 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <span className="text-red-600">⚠️</span>
+              <span className="text-red-700 text-sm">{connectionError}</span>
+            </div>
+            <button
+              onClick={handleReconnect}
+              className="text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition-colors"
+            >
+              Reconnect
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
@@ -180,13 +205,14 @@ const Dashboard = () => {
               <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
                     <div>
                       <h2 className="text-xl font-bold text-gray-900">
                         # {activeChannel.name}
                       </h2>
                       <p className="text-sm text-gray-600">
                         {activeChannel.description || 'A place for conversation'}
+                        {!isConnected && ' • Disconnected from chat'}
                       </p>
                     </div>
                   </div>
@@ -216,19 +242,19 @@ const Dashboard = () => {
               <div className="text-center text-gray-500">
                 <div className="text-6xl mb-6">💬</div>
                 <h3 className="text-2xl font-bold mb-2">
-                  Welcome to ClassChat
+                  {isConnected ? 'Welcome to ClassChat' : 'Connecting...'}
                 </h3>
                 <p className="text-lg mb-6">
-                  Select a channel from the sidebar to start chatting
+                  {isConnected 
+                    ? 'Select a channel from the sidebar to start chatting'
+                    : 'Please wait while we connect to the chat server'
+                  }
                 </p>
-                <div className="text-sm">
-                  {!socketConnected && (
-                    <div className="text-red-500 mb-2">
-                      ⚡ Connecting to server...
-                    </div>
-                  )}
-                  Create a new channel or join existing ones to get started!
-                </div>
+                {!isConnected && (
+                  <div className="text-sm text-red-500">
+                    ⚡ {connectionError || 'Establishing connection...'}
+                  </div>
+                )}
               </div>
             </div>
           )}
